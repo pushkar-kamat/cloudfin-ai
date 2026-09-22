@@ -18,7 +18,7 @@ services:
       - key: COGNITO_CLIENT_ID
         sync: false
 
-  - type: static_site
+  - type: static
     name: cloudfin-frontend
     rootDir: frontend
     buildCommand: npm ci && npm run build
