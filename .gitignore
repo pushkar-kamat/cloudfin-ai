@@ -1,17 +1,23 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
 # Python
 __pycache__/
 *.py[cod]
 .venv/
-venv/
-.env
-backend/.env
+.pytest_cache/
 
-# Node
+# Frontend
 node_modules/
 dist/
-frontend/.env
 
-# Editors / OS
-.vscode/
+# Runtime uploads are deliberately ephemeral on Render Free
+backend/runtime_uploads/*
+!backend/runtime_uploads/.gitkeep
+
+# OS / editor
 .DS_Store
-Thumbs.db
+.vscode/
+.idea/

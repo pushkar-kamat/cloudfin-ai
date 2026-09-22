@@ -1,72 +1,79 @@
-import {
-  AuthenticationDetails,
-  CognitoUser,
-  CognitoUserAttribute,
-  CognitoUserPool,
-} from 'amazon-cognito-identity-js'
+import { createClient } from '@supabase/supabase-js'
 
-const issuer = import.meta.env.VITE_COGNITO_ISSUER || ''
-const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID || ''
-const match = issuer.match(/amazonaws\.com\/(.+)$/)
-const userPoolId = match?.[1] || ''
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim()
+const publishableKey = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '').trim()
 
-export const authConfigured = Boolean(userPoolId && clientId)
-const pool = authConfigured ? new CognitoUserPool({ UserPoolId: userPoolId, ClientId: clientId }) : null
-
-export function signUp(email, password) {
-  if (!pool) return Promise.reject(new Error('Cognito is not configured.'))
-  return new Promise((resolve, reject) => {
-    const attrs = [new CognitoUserAttribute({ Name: 'email', Value: email })]
-    pool.signUp(email, password, attrs, null, (err, result) => {
-      if (err) reject(err)
-      else resolve(result)
+export const authConfigured = Boolean(supabaseUrl && publishableKey)
+export const supabase = authConfigured
+  ? createClient(supabaseUrl, publishableKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
     })
-  })
+  : null
+
+function ensureConfigured() {
+  if (!supabase) throw new Error('Supabase Auth is not configured. Add the VITE_SUPABASE_* values to frontend/.env.')
 }
 
-export function confirmSignUp(email, code) {
-  if (!pool) return Promise.reject(new Error('Cognito is not configured.'))
-  const user = new CognitoUser({ Username: email, Pool: pool })
-  return new Promise((resolve, reject) => {
-    user.confirmRegistration(code, true, (err, result) => {
-      if (err) reject(err)
-      else resolve(result)
-    })
-  })
+function normalizeSession(session) {
+  if (!session?.access_token || !session?.user) return null
+  return {
+    email: session.user.email || 'User',
+    token: session.access_token,
+    userId: session.user.id,
+  }
 }
 
-export function signIn(email, password) {
-  if (!pool) return Promise.reject(new Error('Cognito is not configured.'))
-  const user = new CognitoUser({ Username: email, Pool: pool })
-  const details = new AuthenticationDetails({ Username: email, Password: password })
-  return new Promise((resolve, reject) => {
-    user.authenticateUser(details, {
-      onSuccess: resolve,
-      onFailure: reject,
-      newPasswordRequired: () => reject(new Error('A new password is required for this account.')),
-    })
-  })
+export async function signUp(email, password) {
+  ensureConfigured()
+  const { data, error } = await supabase.auth.signUp({ email, password })
+  if (error) throw error
+  return data
 }
 
-export function signOut() {
-  pool?.getCurrentUser()?.signOut()
+export async function signIn(email, password) {
+  ensureConfigured()
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) throw error
+  return data
 }
 
-export function getSession() {
-  if (!pool) return Promise.resolve(null)
-  const user = pool.getCurrentUser()
-  if (!user) return Promise.resolve(null)
-  return new Promise((resolve) => {
-    user.getSession((err, session) => {
-      if (err || !session?.isValid()) resolve(null)
-      else {
-        const idToken = session.getIdToken()
-        resolve({
-          email: idToken.payload.email || idToken.payload['cognito:username'] || 'User',
-          token: idToken.getJwtToken(),
-          groups: idToken.payload['cognito:groups'] || [],
-        })
-      }
-    })
+
+export async function requestPasswordReset(email) {
+  ensureConfigured()
+  const redirectTo = `${window.location.origin}/reset-password`
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  if (error) throw error
+  return data
+}
+
+export async function updatePassword(password) {
+  ensureConfigured()
+  const { data, error } = await supabase.auth.updateUser({ password })
+  if (error) throw error
+  return data
+}
+
+export async function signOut() {
+  if (!supabase) return
+  const { error } = await supabase.auth.signOut()
+  if (error) throw error
+}
+
+export async function getSession() {
+  if (!supabase) return null
+  const { data, error } = await supabase.auth.getSession()
+  if (error) return null
+  return normalizeSession(data.session)
+}
+
+export function subscribeAuth(callback) {
+  if (!supabase) return () => {}
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    callback(normalizeSession(session))
   })
+  return () => data.subscription.unsubscribe()
 }

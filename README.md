@@ -1,358 +1,261 @@
-# CloudFin AI
+# CloudFin AI V2
 
-**Financial Policy Intelligence Assistant** — a lightweight college Cloud Computing + portfolio project built with React, FastAPI, AWS Cognito, Gemini, and TF-IDF retrieval.
+**Lightweight Enterprise Financial Policy RAG**
 
-CloudFin AI lets authenticated users ask natural-language questions against a small curated financial-policy knowledge base. The backend retrieves the most relevant policy sections with TF-IDF + cosine similarity, sends only that context to Gemini, and returns a grounded answer with source attribution.
+CloudFin AI V2 evolves the original Financial RAG concept into a dynamic but deployment-friendly application. It keeps the parts that make an enterprise RAG system useful—secure users, document ingestion, retrieval, grounded generation, source attribution, administration and diagnostics—without requiring a local embedding model, PyTorch, Qdrant, LangChain, Docker or PostgreSQL for the MVP.
 
-> The included policy documents are synthetic academic-demo content. This project is not legal, compliance, investment, lending, or personalized financial advice.
+## Final hosting architecture
 
-## Architecture
-
-```mermaid
-flowchart LR
-    U[User] --> F[React + Vite Frontend]
-    F --> C[AWS Cognito User Pool]
-    F -->|Bearer ID token| B[FastAPI Backend on Render]
-    B --> J[Cognito JWKS validation]
-    B --> K[Local Markdown Policy Corpus]
-    K --> T[TF-IDF + Cosine Similarity]
-    T --> G[Google Gemini]
-    G --> B
-    B -->|Answer + Sources| F
-```
-
-## MVP Features
-
-- AWS Cognito sign up, email verification, sign in, session persistence, and logout
-- Protected chat routes and backend JWT validation
-- React/Vite responsive enterprise-style chat interface
-- Local browser conversation history — no database required
-- Quick question cards for KYC, AML, credit risk, and loan origination
-- Nine Markdown policy documents in the repository
-- TF-IDF retrieval with cosine similarity; no embeddings or vector database
-- Gemini grounded responses with source attribution
-- Admin-only knowledge-base page using the Cognito `admin` group
-- Admin knowledge-index refresh endpoint
-- Production-minded environment configuration and CORS
-- Render-compatible frontend/backend structure
-
-## Technology Stack
-
-| Layer             | Technology                                         |
-| ----------------- | -------------------------------------------------- |
-| Frontend          | React + Vite                                       |
-| Backend           | FastAPI + Python                                   |
-| Authentication    | AWS Cognito User Pools                             |
-| LLM               | Google Gemini (`gemini-2.5-flash-lite` by default) |
-| Retrieval         | scikit-learn TF-IDF + cosine similarity            |
-| Knowledge         | Local Markdown files                               |
-| Chat history      | Browser localStorage                               |
-| Deployment target | Render Static Site + Render Web Service            |
-
-## Repository Structure
+- **Frontend:** React + Vite on **Vercel**
+- **Backend:** FastAPI + Python on **Render**
+- **Authentication:** Supabase Auth
+- **LLM:** Groq primary with Gemini fallback
+- **Retrieval:** Hybrid word + character TF-IDF with cosine similarity
+- **Core knowledge:** Repository-backed Markdown policies
+- **Dynamic knowledge:** Admin uploads of PDF, DOCX, TXT, Markdown and Excel
+- **Conversation persistence:** Browser localStorage
+- **Cache:** Small in-memory TTL cache
 
 ```text
-cloudfin-ai/
+User
+  |
+  v
+Vercel - React/Vite
+  |  Cognito JWT
+  v
+Render - FastAPI
+  |
+  +--> Hybrid TF-IDF Retriever
+  |        |
+  |        +--> Core policy corpus (Git repository)
+  |        +--> Runtime admin uploads (temporary on Render Free)
+  |
+  +--> Groq/Gemini grounded generation with automatic failover
+  |
+  +--> Answer + sources + section/page/excerpt
+```
+
+## What changed from the emergency demo
+
+1. The one-file backend has been split into small modules.
+2. Retrieval now combines **word TF-IDF** and **character TF-IDF**.
+3. Retrieval includes title/section boosts for financial policy terms.
+4. Admins can upload **PDF, DOCX, TXT, MD and Excel** files and immediately re-index them.
+5. Runtime documents can be removed without redeploying the app.
+6. Sources now include document, section, page where available, excerpt and relevance.
+7. Admins get a **Retrieval Lab** to inspect the top retrieved chunks before an LLM is called.
+8. The chat sends a small recent history window for follow-up questions.
+9. Repeated questions can use a lightweight in-memory TTL cache.
+10. Conversations support search, rename, pin, archive and delete in localStorage.
+11. LLM routing is environment-configurable, with Groq/Gemini failover and a lightweight circuit breaker.
+12. Vercel SPA routing and Render deployment configuration are included.
+
+## Important Render Free limitation
+
+The project deliberately treats admin uploads as **runtime/demo knowledge**. Render Free web services use an ephemeral filesystem, so uploaded files can be lost when an instance restarts, redeploys or spins down. The nine repository policies always return after a restart because they are part of the Git deployment.
+
+This is intentional for the lightweight MVP. A later persistence upgrade can add S3-compatible object storage without changing the retrieval pipeline.
+
+## Project structure
+
+```text
+cloudfin-ai-v2/
 ├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── config.py
+│   │   ├── auth.py
+│   │   ├── schemas.py
+│   │   ├── routes/
+│   │   │   ├── health.py
+│   │   │   ├── chat.py
+│   │   │   └── admin.py
+│   │   ├── rag/
+│   │   │   ├── loaders.py
+│   │   │   ├── chunker.py
+│   │   │   ├── knowledge_base.py
+│   │   │   └── pipeline.py
+│   │   └── services/
+│   │       ├── gemini.py
+│   │       └── cache.py
+│   ├── runtime_uploads/
 │   ├── main.py
-│   ├── pyproject.toml
-│   ├── uv.lock                 # generated by `uv sync`
-│   ├── .python-version
-│   └── .env.example
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── api.js
-│   │   ├── auth.js
-│   │   ├── main.jsx
-│   │   └── styles.css
-│   ├── index.html
-│   ├── package.json
-│   ├── package-lock.json       # generated by `npm install`
-│   ├── vite.config.js
+│   ├── requirements.txt
 │   └── .env.example
 ├── knowledge/
-│   ├── aml.md
-│   ├── kyc.md
-│   ├── credit_risk.md
-│   ├── loan_origination.md
-│   ├── customer_due_diligence.md
-│   ├── compliance.md
-│   ├── information_security.md
-│   ├── risk_management.md
-│   └── regulatory_guidelines.md
-├── .gitignore
+├── frontend/
+│   ├── src/
+│   ├── vercel.json
+│   ├── package.json
+│   └── .env.example
+├── render.yaml
 └── README.md
 ```
 
-## 1. Prerequisites
+## Local setup
 
-- Python 3.12
-- `uv` package manager
-- Node.js 20+ and npm
-- AWS account for Cognito
-- Google AI Studio / Gemini API key
-- GitHub account
-- Render account
-
-## 2. AWS Cognito Setup
-
-Create an AWS Cognito **User Pool** for the project.
-
-Recommended MVP configuration:
-
-1. Use email as the sign-in identifier.
-2. Enable email verification.
-3. Create an app client for the browser application **without a client secret**.
-4. Keep the default SRP authentication flow available for the app client.
-5. Create a Cognito group named exactly `admin`.
-6. Add the account you want to use for the admin demonstration to the `admin` group.
-
-Copy these values:
-
-- User Pool issuer, in the form `https://cognito-idp.<region>.amazonaws.com/<user-pool-id>`
-- App client ID
-
-The frontend derives the User Pool ID from the issuer URL. The backend validates Cognito ID-token signatures using the pool's JWKS endpoint and checks issuer, expiry, audience, and `token_use`.
-
-## 3. Gemini Setup
-
-Create a Gemini API key and keep it server-side only. Never put it in the frontend `.env` file.
-
-The default model in this project is:
-
-```text
-gemini-2.5-flash-lite
-```
-
-You can change it with `GEMINI_MODEL` without changing source code.
-
-## 4. Backend Local Setup
+### Backend
 
 ```bash
 cd backend
+python3 -m venv .venv
+source .venv/bin/activate       # macOS/Linux
+# Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Edit `backend/.env`:
+Fill `backend/.env`:
 
 ```env
-GEMINI_API_KEY=your_key_here
-GEMINI_MODEL=gemini-3.5-flash-lite
-FRONTEND_URL=http://localhost:5173
-COGNITO_ISSUER=https://cognito-idp.ap-south-1.amazonaws.com/your_user_pool_id
+GEMINI_API_KEY=your_key
+GEMINI_MODEL=gemini-2.5-flash-lite
+COGNITO_ISSUER=https://cognito-idp.REGION.amazonaws.com/POOL_ID
 COGNITO_CLIENT_ID=your_app_client_id
+FRONTEND_URL=http://localhost:5173,http://127.0.0.1:5173
 ```
 
-Install and run:
+Run:
 
 ```bash
-uv sync
-uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Useful endpoints:
+The old demo command also works:
 
-- `GET /` — application status
-- `GET /health` — index + configuration status
-- `POST /chat` — authenticated chat
-- `GET /sources` — authenticated policy list
-- `POST /admin/reload` — admin-only index rebuild
+```bash
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
 
-## 5. Frontend Local Setup
+Check:
 
-Open a second terminal:
+- `http://localhost:8000/health`
+- `http://localhost:8000/docs`
+
+### Frontend
 
 ```bash
 cd frontend
+npm install
 cp .env.example .env
 ```
 
-Edit `frontend/.env`:
+Fill `frontend/.env`:
 
 ```env
-VITE_COGNITO_ISSUER=https://cognito-idp.ap-south-1.amazonaws.com/your_user_pool_id
+VITE_COGNITO_ISSUER=https://cognito-idp.REGION.amazonaws.com/POOL_ID
 VITE_COGNITO_CLIENT_ID=your_app_client_id
 VITE_API_URL=http://localhost:8000
 ```
 
-Install and run:
+Run:
 
 ```bash
-npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`.
+## Deploy backend to Render
 
-## 6. Authentication Flow
+Fast path: connect the GitHub repository to Render and create a **Web Service**.
 
-```text
-Sign Up
-   ↓
-AWS Cognito email verification
-   ↓
-Verify page
-   ↓
-Sign In
-   ↓
-Cognito ID token
-   ↓
-Protected CloudFin chat
-```
+- Root directory: `backend`
+- Runtime: Python
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Health check: `/health`
 
-The app uses a Cognito **ID token** as the bearer token because the backend validates the app-client audience. Passwords are handled by Cognito and are never stored by the FastAPI application.
-
-## 7. Retrieval Flow
-
-```text
-Markdown policy files
-        ↓
-Paragraph-aware chunking (~1,800 chars max)
-        ↓
-TF-IDF vectorization at backend startup
-        ↓
-User question vectorization
-        ↓
-Cosine similarity
-        ↓
-Top relevant chunks
-        ↓
-Gemini grounded answer
-        ↓
-Answer + policy sources
-```
-
-If no policy chunk clears the relevance threshold, CloudFin returns a clean “information unavailable” response instead of calling Gemini with unrelated context.
-
-## 8. Admin Demo
-
-The Admin page appears only when the Cognito ID token contains:
-
-```text
-cognito:groups = ["admin"]
-```
-
-The page shows:
-
-- number of policy documents
-- number of indexed chunks
-- index status
-- policy document list
-- **Refresh knowledge base** button
-
-The backend independently checks the `admin` group before allowing `/admin/reload`; hiding the UI is not treated as authorization.
-
-## 9. Render Deployment
-
-### Backend — Render Web Service
-
-Create a new Render Web Service from the GitHub repository.
-
-- **Root Directory:** `backend`
-- **Build Command:** `uv sync`
-
-After your first successful local `uv sync`, commit the generated `backend/uv.lock`. You can then use `uv sync --frozen` on Render if you want strict locked builds.
-
-- **Start Command:** `uv run uvicorn main:app --host 0.0.0.0 --port $PORT`
-
-Add backend environment variables:
+Environment variables:
 
 ```text
 GEMINI_API_KEY
-GEMINI_MODEL=gemini-3.5-flash-lite
-FRONTEND_URL=https://YOUR-FRONTEND.onrender.com
+GEMINI_MODEL=gemini-2.5-flash-lite
 COGNITO_ISSUER
 COGNITO_CLIENT_ID
+FRONTEND_URL=https://YOUR-VERCEL-DOMAIN.vercel.app
 ```
 
-After deploy, open:
+The repository also includes `render.yaml` for a Blueprint-style setup.
 
-```text
-https://YOUR-BACKEND.onrender.com/health
-```
+## Deploy frontend to Vercel
 
-### Frontend — Render Static Site
+Import the same GitHub repository into Vercel.
 
-Create a new Render Static Site from the same repository.
+- Root directory: `frontend`
+- Framework preset: Vite
+- Build command: `npm run build`
+- Output directory: `dist`
 
-- **Root Directory:** `frontend`
-- **Build Command:** `npm install && npm run build`
-- **Publish Directory:** `dist`
-
-Add frontend environment variables:
+Environment variables:
 
 ```text
 VITE_COGNITO_ISSUER
 VITE_COGNITO_CLIENT_ID
-VITE_API_URL=https://YOUR-BACKEND.onrender.com
+VITE_API_URL=https://YOUR-RENDER-SERVICE.onrender.com
 ```
 
-Then update the backend `FRONTEND_URL` to the actual frontend Render URL and redeploy the backend if needed.
+`frontend/vercel.json` adds the SPA fallback needed for direct visits to `/app`, `/admin`, `/signin`, and related React routes.
 
-For SPA routing, configure Render to rewrite unknown frontend routes to `/index.html` if your Static Site configuration requires it.
+### Production CORS order
 
-## 10. Recommended College Demo
+After Vercel gives the final frontend URL, update the Render variable:
 
-1. Open the deployed CloudFin frontend.
-2. Show Cognito sign-up/sign-in or use a pre-verified demo account.
-3. Open the chat dashboard.
-4. Ask **“What are the core KYC requirements?”**
-5. Show the Gemini answer and policy sources.
-6. Ask **“What are common AML escalation indicators?”**
-7. Ask an unrelated question to demonstrate the no-match behavior.
-8. Sign in with the admin account.
-9. Open **CloudFin Administration**.
-10. Show the document count, indexed chunks, and refresh function.
+```text
+FRONTEND_URL=https://YOUR-VERCEL-DOMAIN.vercel.app
+```
 
-This single flow demonstrates cloud authentication, REST APIs, cloud deployment, AI integration, information retrieval, role-aware authorization, and a modern frontend.
+Then redeploy/restart the backend once so the production origin is accepted.
 
-## 11. Security Notes
+## Admin workflow
 
-- `.env` files are excluded from Git.
-- Gemini API keys are backend-only.
-- Cognito passwords are never stored by CloudFin.
-- Protected API endpoints validate signed Cognito JWTs.
-- Admin operations require the Cognito `admin` group on the backend.
-- Production CORS should contain only the deployed frontend URL.
-- Chat input is limited to 1,500 characters in the backend request model.
-- Do not commit real customer data or confidential policy documents to this student project.
+An administrator in the Cognito `admin` group can:
 
-## 12. Intentional MVP Limitations
+1. Open **Admin console**.
+2. View document/chunk/cache status.
+3. Upload PDF, DOCX, TXT, Markdown or Excel.
+4. The backend extracts text, chunks it and rebuilds the hybrid TF-IDF index.
+5. Open **Retrieval Lab** and test what chunks match a query.
+6. Return to chat and ask a question about the newly uploaded policy.
+7. Delete runtime documents and re-index.
 
-The MVP does **not** include:
+This is the recommended dynamic RAG demonstration for the project viva.
 
-- vector databases
-- embeddings
-- LangChain / LangGraph
-- PyTorch or custom model training
-- Docker / Kubernetes
-- EC2 / Lambda
-- persistent server-side chat storage
-- PDF/DOCX upload
-- financial prediction or investment recommendations
-- loan approval automation
+## Viva-friendly configuration
 
-These can be considered only after the deployed MVP is stable.
+Important values are centralized in `backend/app/config.py` and can also be changed using environment variables:
 
-## Troubleshooting
+```text
+TOP_K
+MIN_RELEVANCE
+WORD_TFIDF_WEIGHT
+CHAR_TFIDF_WEIGHT
+CHUNK_SIZE
+CHUNK_OVERLAP
+MAX_HISTORY_MESSAGES
+CACHE_TTL_SECONDS
+MAX_UPLOAD_MB
+```
 
-### Frontend says Cognito is not configured
+This makes common manual viva changes small and easy to explain.
 
-Check `frontend/.env`, then restart the Vite dev server.
+## Current lightweight dependencies
 
-### Backend `/health` says `cognito_configured: false`
+The backend intentionally avoids the heavy original stack. It does **not** require:
 
-Check `backend/.env` and restart FastAPI.
+- PyTorch
+- Sentence Transformers
+- Qdrant
+- LangChain
+- Docker
+- PostgreSQL
+- GPU inference
 
-### Backend finds sources but does not generate an answer
+The ingestion layer stays lightweight: `PyMuPDF` for PDF, `python-docx` for DOCX, and `openpyxl`/`xlrd` for Excel. Pandas is not required.
 
-Check `GEMINI_API_KEY`. The project intentionally returns a configuration message when Gemini is not configured.
+## Recommended next development batch
 
-### 401 Invalid or expired token
+After this V2 foundation is running locally and on hosting, the next improvements should be:
 
-Sign out and sign back in. Also verify that frontend and backend use the same Cognito User Pool and app client.
-
-### Admin page is missing
-
-Add your Cognito user to the `admin` group, then sign out and back in so Cognito issues a new ID token containing the updated group claim.
+1. Optional persistent object storage adapter for uploaded documents.
+2. Better retrieval evaluation with a small question/answer test set.
+3. Admin audit/activity records if required by the final report.
+4. Final architecture diagrams and viva change exercises.
