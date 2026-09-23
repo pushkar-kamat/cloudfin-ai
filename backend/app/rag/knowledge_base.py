@@ -58,7 +58,14 @@ class KnowledgeBase:
         self.reload()
 
     def _paths(self) -> list[tuple[str, Path]]:
-        core = [("core", path) for path in sorted(KNOWLEDGE_DIR.glob("*.md"))]
+        # Core documents are committed with the project and survive Render restarts/redeploys.
+        # Keep the same supported formats for both core documents and runtime uploads so
+        # admins can promote a tested PDF/DOCX/TXT/MD/Excel file into the permanent corpus.
+        core = [
+            ("core", path)
+            for path in sorted(KNOWLEDGE_DIR.iterdir())
+            if path.is_file() and path.suffix.lower() in ALLOWED_UPLOAD_EXTENSIONS
+        ]
         runtime = [
             ("runtime", path)
             for path in sorted(RUNTIME_UPLOAD_DIR.iterdir())
