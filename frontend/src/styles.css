@@ -91,3 +91,17 @@ body{font-size:15px}
   .message-content table{font-size:12px}.message-content th,.message-content td{min-width:135px;padding:9px 10px}
 }
 
+/* Authentication-only hover polish -------------------------------------------
+   Keep the rest of the interface stable; only the primary auth action changes
+   shade slightly on hover. */
+.auth-submit{transition:background-color .16s ease,color .16s ease}
+.auth-submit:hover:not(:disabled){background:#d2d9d8}
+
+/* Signup confirmation is a success state, not an error. */
+.form-success.auth-success{display:flex;align-items:flex-start;gap:9px;background:#153129;border:1px solid #326554;color:#c2eadb;box-shadow:inset 3px 0 0 #72bfa8}
+.form-success.auth-success svg{flex:0 0 auto;margin-top:1px;color:#83cfb9}
+.form-success.auth-success span{display:block}
+
+@media(prefers-reduced-motion:reduce){
+  .auth-submit{transition:none}
+}

@@ -108,11 +108,12 @@ function AuthCard({ mode }) {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [busy, setBusy] = useState(false)
   const isSignup = mode === 'signup'
 
   async function submit(e) {
-    e.preventDefault(); setError('')
+    e.preventDefault(); setError(''); setSuccess('')
     if (password !== confirmPassword) { setError('Passwords do not match.'); return }
     setBusy(true)
     try {
@@ -121,7 +122,7 @@ function AuthCard({ mode }) {
         if (data.session) nav('/app')
         else {
           localStorage.setItem('cloudfin_pending_email', email)
-          setError('Account created. Confirm your email, then sign in.')
+          setSuccess('Account created successfully. Check your email to confirm your account, then sign in.')
         }
       } else {
         await signIn(email, password); nav('/app')
@@ -145,10 +146,10 @@ function AuthCard({ mode }) {
         <PasswordField label="Password" value={password} onChange={e=>setPassword(e.target.value)} autoComplete={isSignup ? 'new-password' : 'current-password'} />
         <PasswordField label="Confirm password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} autoComplete={isSignup ? 'new-password' : 'off'} />
         {!isSignup && <div className="auth-help-row"><button type="button" onClick={()=>nav('/forgot-password')}>Forgot password?</button></div>}
+        {success && <div className="form-success auth-success"><Check size={16}/><span>{success}</span></div>}
         {error && <div className="form-error">{error}</div>}
         <button className="auth-submit" disabled={busy}>{busy ? <><span className="button-spinner"/>Please wait</> : isSignup ? 'Create account' : 'Sign in'}</button>
         <p className="auth-switch">{isSignup ? <>Already have an account? <button type="button" onClick={()=>nav('/signin')}>Sign in</button></> : <>New to CloudFin? <button type="button" onClick={()=>nav('/signup')}>Create account</button></>}</p>
-        <div className="auth-trust"><span><LockKeyhole size={13}/> Supabase Auth</span><span><Shield size={13}/> Protected APIs</span></div>
       </form>
     </main>
     <footer className="auth-footer">CloudFin AI · Lightweight Enterprise RAG · Vercel + Render</footer>
